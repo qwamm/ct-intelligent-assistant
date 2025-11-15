@@ -98,9 +98,6 @@ TEMPLATES = [
     }
 ]
 
-WSGI_APPLICATION = "dj_nnapi.wsgi.application"
-
-
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
@@ -174,30 +171,6 @@ SIMPLE_JWT = {
         timedelta(minutes=5) if not DEBUG else timedelta(hours=5)
     ),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-}
-
-"""CELERY"""
-# https://realpython.com/asynchronous-tasks-with-django-and-celery/
-#REDIS_HOST = getenv("REDIS_HOST", "redis_server")
-#REDIS_PORT = getenv("REDIS_PORT", "6379")
-#CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
-#CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}"
-CELERY_BROKER_URL = "redis://localhost:6380"
-CELERY_RESULT_BACKEND = "redis://localhost:6380"
-
-"""NNModel"""
-NN_SETTINGS = {
-    "IMAGE_NAME_MAX_CHARS": 10,
-    "MAX_IMAGE_BYTES": 1024,
-    "classification": {
-        "cross": BASE_MODEL_PATH / "base/classUZI/cross/resnet.zip",
-        "long": BASE_MODEL_PATH / "base/classUZI/long/resnet.zip",
-        "all": BASE_MODEL_PATH / "base/classUZI/all/all.zip",
-    },
-    "segmentation": {
-        "cross": BASE_MODEL_PATH / "base/segUZI/cross/deeplabv3plus.zip",
-        "long": BASE_MODEL_PATH / "base/segUZI/long/deeplabv3plus.zip",
-    },
 }
 
 if DEBUG:
