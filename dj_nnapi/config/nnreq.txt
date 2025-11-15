@@ -1,0 +1,16 @@
+torch>=1.12.1
+torchvision>=0.13.1
+segmentation-models-pytorch>=0.3.0
+efficientnet-pytorch>=0.7.1
+tifffile>=2022.8.12
+numpy>=1.22.4
+Pillow>=9.2.0
+matplotlib>=3.5.2
+pydantic>=1.10.2
+scikit-image>=0.19.3
+imageio>=2.22.1
+pandas>=1.4.3
+Cython>=0.29.32
+regex>=2022.7.25
+opencv-python
+imgaug

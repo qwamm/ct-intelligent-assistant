@@ -1,0 +1,3 @@
+[submodule "uzi-intelligent-assistant-front"]
+	path = uzi-intelligent-assistant-front
+	url = https://github.com/qwamm/uzi-intelligent-assistant-front

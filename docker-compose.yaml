@@ -1,0 +1,105 @@
+version: '3.8'
+
+volumes:
+  medweb:
+    name: medweb
+  static_files:
+  monitoring:
+  prometheus-db:
+  # clickhouse-db:
+  # clickhouse-data:
+
+services:
+  web:
+    build: 
+      context: .
+      args: 
+        MEDIA_ROOT: /usr/src/web/model_files/
+        NN_MODEL_FOLDER: model_files/
+    image: medml/web
+    container_name: web
+    command: python ./medweb/manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8015:8000"
+    restart: always
+    env_file:
+      - ./dev.env
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+    volumes:
+      - ./medweb:/usr/src/web/medweb
+      - ./model_files:/usr/src/web/model_files
+      - static_files:/usr/src/web/static_files/
+  djnnapi:
+    build: 
+      context: ./dj_nnapi
+      args: 
+        MEDIA_ROOT: /usr/src/web/model_files/
+    image: medml/dj_nnapi
+    entrypoint: ./entrypoint.sh
+    container_name: djnnapi
+#    command: sleep 1000s
+    ports:
+      - "8008:8000"
+    restart: always
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - driver: nvidia
+#              capabilities: [gpu]
+    env_file:
+      - ./dev.env
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+    volumes:
+      - ./dj_nnapi/dj_nnapi:/usr/src/web/dj_nnapi/dj_nnapi
+      - ./model_files:/usr/src/web/model_files
+  db:
+    image: postgres
+    restart: always
+    ports:
+      - "8011:5432"
+    env_file:
+      - ./dev.env
+    volumes:
+      - medweb:/var/lib/postgresql/data
+      - ./backups:/usr/src/web/backups
+
+  redis:
+    image: redis:6-alpine  # Use specific version
+    container_name: redis
+    ports:
+      - "8002:6379"  # Fixed Redis port
+
+  rabbitmq:
+    image: rabbitmq:3-management  # Use specific version
+    container_name: rabbitmq
+    ports:
+      - "8003:5672"   # AMQP port
+      - "15672:15672" # Management UI port
+
+  front_server:
+    build: 
+      context: ./uzi-intelligent-assistant-front
+    image: medml/msa/front_server
+    container_name: front_server
+    restart: always
+    command: npm run dev --host 0.0.0.0 --port 5173
+    ports:
+      - "5173:5173"
+#    depends_on:
+#      - web
+#    links:
+#      - web
+    volumes:
+      - ./model_files:/usr/src/web/model_files
+
+#networks:
+#  default:
+#    name: complex_net
+#    external: true
