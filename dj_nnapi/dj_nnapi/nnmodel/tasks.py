@@ -3,7 +3,7 @@ import uuid
 import dramatiq
 from nnmodel import models
 
-from nnmodel.forms import segmetationDataForm
+from dj_nnapi.dj_nnapi.nnmodel.forms import segmetationDataForm
 import cv2
 import numpy as np
 

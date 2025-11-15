@@ -4,8 +4,8 @@ from datetime import datetime
 import cv2
 import numpy as np
 
-from nnmodel.BaseNNModel import BaseNNModel
-from nnmodel.settings import settings
+from dj_nnapi.dj_nnapi.nnmodel.nn.BaseNNModel import BaseNNModel
+from dj_nnapi.dj_nnapi.nnmodel.nn.nnmodel_settings import settings
 
 class SegmentationModel(BaseNNModel):
     """
