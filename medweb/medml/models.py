@@ -1,5 +1,3 @@
-import uuid
-
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django_use_email_as_username.models import BaseUser, BaseUserManager
@@ -12,8 +10,8 @@ from django.core.validators import (
 from django.utils.regex_helper import _lazy_re_compile
 from django.utils import timezone
 
-from medml import utils
-from medml.fields import DicomAndTiffFileField
+from medweb.medml import utils
+from medweb.medml.fields import DicomAndTiffFileField
 
 
 """Mixins"""
@@ -96,7 +94,7 @@ class MedWorker(BaseUser):
         return get_full_name(self)
 
 
-class UZIDevice(models.Model):
+class CTDevice(models.Model):
     """
     Аппарат, на котором происходило УЗИ диагностика
     """
@@ -104,8 +102,8 @@ class UZIDevice(models.Model):
     name = models.CharField("Название аппарата", max_length=512)
 
     class Meta:
-        verbose_name = "Аппарат УЗИ"
-        verbose_name_plural = "Аппараты УЗИ"
+        verbose_name = "Аппарат КТ"
+        verbose_name_plural = "Аппараты КТ"
 
     def __str__(self) -> str:
         return f"{self.name}"
@@ -157,7 +155,7 @@ class OriginalImage(models.Model):
     viewed_flag = models.BooleanField("Просмотренно", default=False)
 
     image = DicomAndTiffFileField(
-        "Cнимок", upload_to=utils.originalUZIPath, validators=[dcm_validator]
+        "Cнимок", upload_to=utils.originaCTPath, validators=[dcm_validator]
     )
 
     class Meta:
@@ -169,7 +167,7 @@ class SegmentationData(models.Model):
     details = models.JSONField(null=True)
 
     segment_group = models.ForeignKey(
-        "UZISegmentGroupInfo", models.CASCADE, related_name="data"
+        "CTSegmentGroupInfo", models.CASCADE, related_name="data"
     )
 
     class Meta:
@@ -199,7 +197,7 @@ class SegmentationPoint(models.Model):
         db_table = "nnmodel_segmentationpoint"
 
 
-class UZISegmentGroupInfo(models.Model):
+class CTSegmentGroupInfo(models.Model):
     details = models.JSONField(null=True)
 
     is_ai = models.BooleanField(default=False)
@@ -212,15 +210,15 @@ class UZISegmentGroupInfo(models.Model):
         managed = True
         verbose_name = "Информация о группе сегментов"
         verbose_name_plural = "Информация о группе сегментов"
-        db_table = "nnmodel_uzisegmentgroupinfo"
+        db_table = "nnmodel_ctsegmentgroupinfo"
 
 
-class UZIImage(models.Model):
+class CTImage(models.Model):
     """
     УЗИ картинка пациента
     """
 
-    PROJECTION_TYPE_CHOICES = (("long", "Продольный"), ("cross", "Поперечный"))
+    CT_TYPE_CHOICES = (("undefined", "Неопределенное"), ("benign", "Доброкачественное"), ("malignant", "Злокачественное"))
 
     brightness = models.FloatField(
         "Яркость",
@@ -244,15 +242,15 @@ class UZIImage(models.Model):
         "Количество снимков", validators=[MinValueValidator(0)], default=0
     )
 
-    uzi_device = models.ForeignKey(
-        "UZIDevice", on_delete=models.SET_NULL, null=True
+    ct_device = models.ForeignKey(
+        "CTDevice", on_delete=models.SET_NULL, null=True
     )
 
     patient_card = models.ForeignKey(
         "PatientCard",
         on_delete=models.SET_NULL,
         null=True,
-        related_name="uzi_images",
+        related_name="ct_images",
     )
 
     diagnos_date = models.DateTimeField(auto_now=True)
@@ -262,15 +260,15 @@ class UZIImage(models.Model):
     image = models.OneToOneField(
         OriginalImage,
         verbose_name="Снимок",
-        related_name="uzi_image",
+        related_name="ct_image",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
     )
 
     class Meta:
-        verbose_name = "УЗИ зображение"
-        verbose_name_plural = "УЗИ изображения"
+        verbose_name = "КТ снимок"
+        verbose_name_plural = "КТ снимки"
 
 
 class Patient(models.Model):
@@ -291,35 +289,3 @@ class Patient(models.Model):
 
     def __str__(self):
         return self.get_full_name()
-
-
-class MLModel(models.Model):
-    MODEL_TYPES_CHOICES = (
-        ("C", "Модель для классификации"),
-        ("S", "Модель для сегментации"),
-        ("B", "Модель для боксов"),
-    )
-    PROJECTION_TYPES_CHOICES = (
-        ("cross", "поперечная"),
-        ("long", "продольная"),
-        ("all", "обе"),
-    )
-
-    name = models.CharField("Имя модели", max_length=256)
-    file = models.FileField("Путь к файлу модели", upload_to=utils.mlModelPath)
-    model_type = models.CharField(
-        "Тип модели",
-        choices=MODEL_TYPES_CHOICES,
-        default=MODEL_TYPES_CHOICES[0][0],
-        max_length=1,
-    )
-    projection_type = models.CharField(
-        "Тип проекции",
-        choices=PROJECTION_TYPES_CHOICES,
-        default=PROJECTION_TYPES_CHOICES[0][0],
-        max_length=10,
-    )
-
-    class Meta:
-        verbose_name = "Модель МЛ"
-        verbose_name_plural = "Модели МЛ"

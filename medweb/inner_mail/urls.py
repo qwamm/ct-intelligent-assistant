@@ -1,5 +1,5 @@
 from django.urls import path, include
-from inner_mail import views
+from medweb.inner_mail import views
 
 
 urlpatterns = [

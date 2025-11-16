@@ -36,8 +36,8 @@ def _makePath(obj, filename: str, basedir: str):
     return f"{basedir}/{date.today().year}/{h}{filee}"
 
 
-def originalUZIPath(obj, filename: str):
-    return _makePath(obj, filename, "originalUZI")
+def originalCTPath(obj, filename: str):
+    return _makePath(obj, filename, "originalCT")
 
 
 def mlModelPath(obj, filename: str):
@@ -59,7 +59,7 @@ def getFields(obj, has_id=True, add_name=""):
 def updateClassesToGroup(classes, group):
     for key in classes:
         group.details[f"nodule_{key}"] = classes[key]
-    group.details["nodule_type"] = int(
+    group.details["neoplasm_type"] = int(
         max(classes.items(), key=lambda x: x[1])[0]
     )
 

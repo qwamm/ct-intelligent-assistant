@@ -10,9 +10,9 @@ import hashlib
 
 from django.utils.translation import gettext_lazy as _
 
-from medml.serializers import (
+from medweb.medml.serializers import (
     UZISegmentationDataPointsSerializer,
-    UZISegmentationGroupForm,
+    CTSegmentationGroupForm,
 )
 from rest_framework.serializers import DictField, CharField, ModelSerializer
 

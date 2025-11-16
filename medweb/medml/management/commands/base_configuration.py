@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
-from medml.models import MedWorker, PatientCard, Patient, UZIDevice, UZIImage
+from medweb.medml.models import MedWorker, PatientCard, Patient, CTDevice, CTImage
 
 
 class Command(BaseCommand):
@@ -39,10 +39,10 @@ class Command(BaseCommand):
             )
 
         try:
-            uzid = UZIDevice.objects.get(id=1)
+            id = CTDevice.objects.get(id=1)
         except:
-            uzid = UZIDevice.objects.create(name="GE Voluson E8")
-            UZIDevice.objects.create(name="Logiq E9")
+            id = CTDevice.objects.create(name="Revolution CT")
+            CTDevice.objects.create(name="Optima CT660")
 
         self._create_groups()
         self._create_demo()

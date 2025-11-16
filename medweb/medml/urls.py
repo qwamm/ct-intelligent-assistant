@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import (
 from rest_framework import routers
 from django.urls import path, include
 
-from medml import views
+from medweb.medml import views
 
 router = routers.DefaultRouter()
 router.register("", views.PatientCardViewSet)
@@ -85,36 +85,36 @@ urlpatterns = [
         include(
             [
                 # Получить список исследований УЗИ по ид
-                path("ids/", views.UZIIdsView.as_view(), name="uzi_ids"),
+                path("ids/", views.CTIdsView.as_view(), name="uzi_ids"),
                 # Список аппаратов УЗИ
                 path(
                     "devices/",
-                    views.UZIDeviceView.as_view(),
-                    name="uzi_devices",
+                    views.CTDeviceView.as_view(),
+                    name="ct_devices",
                 ),
                 # Информация об одной группе снимков
                 path(
                     "<int:id>/",
-                    views.UziImageShowView.as_view(),
-                    name="uzi_image_show",
+                    views.CTImageShowView.as_view(),
+                    name="ct_image_show",
                 ),
                 # Обновление всей страницы с информацией о приеме
                 path(
                     "<int:id>/update/",
-                    views.UZIShowUpdateView.as_view(),
-                    name="uzi_show_update",
+                    views.CTShowUpdateView.as_view(),
+                    name="ct_show_update",
                 ),
                 # Обновление оригинального снимка (только параметры отображения)
                 path(
                     "update/origin/<int:id>",
-                    views.UZIOriginImageUpdateView.as_view(),
-                    name="uzi_update_origin",
+                    views.CTOriginImageUpdateView.as_view(),
+                    name="ct_update_origin",
                 ),
                 # Создать Группу изображений и добавить снимок оригинала
                 path(
                     "create/",
-                    views.UZIImageCreateView.as_view(),
-                    name="uzi_group_create",
+                    views.CTImageCreateView.as_view(),
+                    name="ct_group_create",
                 ),
                 path(
                     "segment/",
@@ -122,38 +122,38 @@ urlpatterns = [
                         [
                             path(
                                 "group/<int:uzi_img_id>/",
-                                views.UZISegmentGroupListView.as_view(),
-                                name="uzi_segment_group_list",
+                                views.CTSegmentGroupListView.as_view(),
+                                name="ct_segment_group_list",
                             ),
                             path(
                                 "group/create/<int:uzi_img_id>/",
-                                views.UZISegmentGroupCreateView.as_view(),
-                                name="uzi_segment_group_create",
+                                views.CTSegmentGroupCreateView.as_view(),
+                                name="ct_segment_group_create",
                             ),
                             path(
                                 "group/create/solo/<int:uzi_img_id>/",
-                                views.UZISegmentGroupCreateSoloView.as_view(),
-                                name="uzi_segment_group_create_solo",
+                                views.CTSegmentGroupCreateSoloView.as_view(),
+                                name="ct_segment_group_create_solo",
                             ),
                             path(
                                 "group/update/<int:id>/",
-                                views.UZISegmentGroupUpdateDeleteView.as_view(),
-                                name="uzi_segment_group_update_delete",
+                                views.CTSegmentGroupUpdateDeleteView.as_view(),
+                                name="ct_segment_group_update_delete",
                             ),
                             path(
                                 "add/",
-                                views.UZISegmentAddView.as_view(),
-                                name="uzi_segment_add",
+                                views.CTSegmentAddView.as_view(),
+                                name="ct_segment_add",
                             ),
                             path(
                                 "update/<int:id>/",
-                                views.UZISegmentUpdateDeleteView.as_view(),
-                                name="uzi_segment_update_delete",
+                                views.CTSegmentUpdateDeleteView.as_view(),
+                                name="ct_segment_update_delete",
                             ),
                             path(
                                 "copy/<int:id>/",
-                                views.UziSegmentCopyView.as_view(),
-                                name="uzi_segment_copy",
+                                views.CTSegmentCopyView.as_view(),
+                                name="ct_segment_copy",
                             ),
                             # path()
                             # # Получение/Добавление сегментов на изображении

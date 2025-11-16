@@ -36,7 +36,7 @@ class NotificationGroup(models.Model):
         "Заголовок уведомления", max_length=512, default=""
     )
 
-    uzi_patient_card = models.ForeignKey(
+    ct_patient_card = models.ForeignKey(
         med_models.PatientCard,
         on_delete=models.CASCADE,
         verbose_name="Карта приема",

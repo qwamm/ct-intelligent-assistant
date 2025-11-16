@@ -20,10 +20,10 @@ from rest_framework.viewsets import ModelViewSet
 from django.db.models import Max, Prefetch
 from django.http import Http404
 
-from medml import filters
-from medml import serializers as ser
-from medml import models
-from medml import tasks
+from medweb.medml import filters
+from medweb.medml import serializers as ser
+from medweb.medml import models
+from medweb.medml import tasks
 
 """MedWorkers' VIEWS"""
 
@@ -181,13 +181,13 @@ class PatientShotsTableView(ListAPIView):
 
     def get_queryset(self):
         qs = (
-            models.UZIImage.objects.select_related(
-                "uzi_device", "patient_card", "image"
+            models.CTImage.objects.select_related(
+                "ct_device", "patient_card", "image"
             )
             .prefetch_related(
                 Prefetch(
                     "image__segments",
-                    queryset=models.UZISegmentGroupInfo.objects.all(),
+                    queryset=models.CTSegmentGroupInfo.objects.all(),
                 )
             )
             .filter(patient_card__patient__id=self.kwargs["id"])
@@ -212,14 +212,14 @@ class PatientListView(ListAPIView):
     filterset_class = filters.PatientListFilter
 
 
-# """UZIs' views"""
-class UZIImageCreateView(CreateAPIView):
+# """CTs' views"""
+class CTImageCreateView(CreateAPIView):
     """
     Форма для сохранния УЗИ изображения и отправки в очередь на обарботку
     УЗИ снимка
     """
 
-    serializer_class = ser.UZIImageCreateSerializer
+    serializer_class = ser.CTImageCreateSerializer
 
     def create(self, request, *args, **kwargs):
         print(request.data["original_image"])
@@ -234,24 +234,24 @@ class UZIImageCreateView(CreateAPIView):
     def perform_create(self, serializer):
         d = serializer.save()
 
-        uzi_image: models.UZIImage = d["uzi_image"]
+        ct_image: models.CTImage = d["ct_image"]
         original: models.OriginalImage = d["image"]
         task = tasks.send_prediction_task(
             original.image.tiff_file_path,
-            uzi_image.details.get("projection_type", "cross"),
-            uzi_image.id,
+            ct_image.details.get("ct_type", "undefined"),
+            ct_image.id,
         )
         result_backend = RedisBackend(host='localhost', port=6380)
         result = result_backend.get_result(message=task, block=True, timeout=1000000)
-        return {"image_id": uzi_image.id}
+        return {"image_id": ct_image.id}
 
 
-class UziImageShowView(RetrieveAPIView):
+class CTImageShowView(RetrieveAPIView):
     """
     Информация об одной группе снимков
     """
 
-    serializer_class = ser.UZIImageGetSerializer
+    serializer_class = ser.CTImageGetSerializer
 
     def get_object(self):
         try:
@@ -261,8 +261,8 @@ class UziImageShowView(RetrieveAPIView):
 
     def get_queryset(self):
         return (
-            models.UZIImage.objects.filter(id=self.kwargs["id"])
-            .select_related("uzi_device", "patient_card", "image")
+            models.CTImage.objects.filter(id=self.kwargs["id"])
+            .select_related("ct_device", "patient_card", "image")
             .prefetch_related(
                 "patient_card__patient",
                 "image__segments",
@@ -271,40 +271,40 @@ class UziImageShowView(RetrieveAPIView):
         )
 
 
-class UZIOriginImageUpdateView(UpdateAPIView):
+class CTOriginImageUpdateView(UpdateAPIView):
     """
     Обновление оригинального снимка (только параметры отображения)
     """
 
     queryset = models.OriginalImage.objects.all()
-    serializer_class = ser.UZIUpdateOriginalImageSerializer
+    serializer_class = ser.CTUpdateOriginalImageSerializer
     # permission_classes = [IsAuthenticated]
     lookup_url_kwarg = "id"
 
 
-class UZIDeviceView(ListAPIView):
+class CTDeviceView(ListAPIView):
     """
     Список аппаратов УЗИ
     """
 
-    queryset = models.UZIDevice.objects.all()
-    serializer_class = ser.UZIDeviceSerializer
+    queryset = models.CTDevice.objects.all()
+    serializer_class = ser.CTDeviceSerializer
 
 
-class UZIIdsView(ListAPIView):
+class CTIdsView(ListAPIView):
     """
     Полученние даднных об узи по ид.
     TODO: добавить ручку на получениее данных у конкретного
     врача или всех узи.
     """
 
-    serializer_class = ser.UZIImageSupprotSerializer
+    serializer_class = ser.CTImageSupprotSerializer
 
     def get_queryset(self):
         ids = json.loads(self.request.query_params.get("ids", ""))
         return (
-            models.UZIImage.objects.filter(id__in=ids)
-            .select_related("uzi_device", "patient_card")
+            models.CTImage.objects.filter(id__in=ids)
+            .select_related("ct_device", "patient_card")
             .prefetch_related("patient_card__patient")
         )
 
@@ -323,13 +323,13 @@ class UZIIdsView(ListAPIView):
         return {di[lookup]: di for di in data}
 
 
-class UZIShowUpdateView(UpdateAPIView):
+class CTShowUpdateView(UpdateAPIView):
     """
     Обновление всей страницы с информацией о приеме
     TODO: FIX 5 DB REQUESTS
     """
 
-    serializer_class = ser.UZIShowUpdateSerializer
+    serializer_class = ser.CTShowUpdateSerializer
 
     def get_object(self):
         try:
@@ -338,7 +338,7 @@ class UZIShowUpdateView(UpdateAPIView):
             raise Http404
 
     def get_queryset(self):
-        return models.UZIImage.objects.filter(
+        return models.CTImage.objects.filter(
             id=self.kwargs["id"]
         ).select_related("patient_card")
 
@@ -346,70 +346,37 @@ class UZIShowUpdateView(UpdateAPIView):
         return super().put(request, *args, **kwargs)
 
 
-class ModelUpdateView(CreateAPIView):
-    """
-    Обновление весов конкретной модели
-    """
-
-    serializer_class = ser.MLModelSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self):
-        qs = self.get_queryset()
-        try:
-            seg = qs[0]
-            return seg
-        except:
-            return None
-
-    def get_queryset(self):
-        qs = models.MLModel.objects.filter(id=self.kwargs["id"])
-        return qs
-
-    def post(self, request: Request, *args, **kwargs):
-        if request.POST:
-            nnmodel = self.get_object()
-            if nnmodel:
-                tasks.update_model_weights.delay(  # TODO: добавить таску и названия весов по умолчанию
-                    nnmodel.file.path,
-                    nnmodel.model_type,
-                    nnmodel.projection_type,
-                )
-
-        return Response(status=status.HTTP_201_CREATED)
-
-
-class UZISegmentGroupListView(ListAPIView):
+class CTSegmentGroupListView(ListAPIView):
     filterset_class = filters.SegmentGroupFilter
 
     def get_queryset(self):
-        qs = models.UZISegmentGroupInfo.objects.filter(
-            original_image_id__in=models.UZIImage.objects.filter(
-                image=self.kwargs["uzi_img_id"]
+        qs = models.CTSegmentGroupInfo.objects.filter(
+            original_image_id__in=models.CTImage.objects.filter(
+                image=self.kwargs["ct_img_id"]
             ).values("image")
         )
         return qs
 
     def get_serializer_class(self):
-        return ser.UZISegmentationGroupBaseSerializer
+        return ser.CTSegmentationGroupBaseSerializer
 
 
-class UZISegmentGroupCreateView(CreateAPIView):
-    serializer_class = ser.UZISegmentationGroupCreateSerializer
+class CTSegmentGroupCreateView(CreateAPIView):
+    serializer_class = ser.CTSegmentationGroupCreateSerializer
 
 
-class UZISegmentGroupCreateSoloView(CreateAPIView):
-    serializer_class = ser.UZISegmentationGroupCreateSoloSerializer
+class CTSegmentGroupCreateSoloView(CreateAPIView):
+    serializer_class = ser.CTSegmentationGroupCreateSoloSerializer
 
 
-class UZISegmentGroupUpdateDeleteView(RetrieveUpdateDestroyAPIView):
-    serializer_class = ser.UZISegmentationGroupUpdateDeleteSerializer
+class CTSegmentGroupUpdateDeleteView(RetrieveUpdateDestroyAPIView):
+    serializer_class = ser.CTSegmentationGroupUpdateDeleteSerializer
     lookup_url_kwarg = "id"
     lookup_field = "pk"
 
     def get_queryset(self):
         qs = (
-            models.UZISegmentGroupInfo.objects.filter(id=self.kwargs["id"])
+            models.CTSegmentGroupInfo.objects.filter(id=self.kwargs["id"])
             # .prefetch_related('points')
         )
         return qs
@@ -418,12 +385,12 @@ class UZISegmentGroupUpdateDeleteView(RetrieveUpdateDestroyAPIView):
         return super().get_object()
 
 
-class UZISegmentAddView(CreateAPIView):
-    serializer_class = ser.UZISegmentationAddSerializer
+class CTSegmentAddView(CreateAPIView):
+    serializer_class = ser.CTSegmentationAddSerializer
 
 
-class UZISegmentUpdateDeleteView(RetrieveUpdateDestroyAPIView):
-    serializer_class = ser.UZISegmentationUpdateDeleteSerializer
+class CTSegmentUpdateDeleteView(RetrieveUpdateDestroyAPIView):
+    serializer_class = ser.CTSegmentationUpdateDeleteSerializer
     lookup_url_kwarg = "id"
     lookup_field = "pk"
 
@@ -434,8 +401,8 @@ class UZISegmentUpdateDeleteView(RetrieveUpdateDestroyAPIView):
         return qs
 
 
-class UziSegmentCopyView(RetrieveAPIView):
-    serializer_class = ser.UZIImageGetSerializer
+class CTSegmentCopyView(RetrieveAPIView):
+    serializer_class = ser.CTImageGetSerializer
 
     def get_object(self):
         try:
@@ -445,8 +412,8 @@ class UziSegmentCopyView(RetrieveAPIView):
 
     def get_queryset(self):
         return (
-            models.UZIImage.objects.filter(id=self.kwargs["id"])
-            .select_related("uzi_device", "patient_card", "image")
+            models.CTImage.objects.filter(id=self.kwargs["id"])
+            .select_related("ct_device", "patient_card", "image")
             .prefetch_related(
                 "patient_card__patient",
                 "image__segments",

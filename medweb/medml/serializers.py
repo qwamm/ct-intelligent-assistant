@@ -1,26 +1,25 @@
 from rest_framework import serializers as ser
 from django.core.validators import EmailValidator
 
-from medml.models import (
+from medweb.medml.models import (
     MedWorker,
     Patient,
     PatientCard,
-    UZIImage,
-    UZIDevice,
+    CTImage,
+    CTDevice,
     OriginalImage,
     SegmentationData,
     SegmentationPoint,
-    UZISegmentGroupInfo,
-    MLModel,
+    CTSegmentGroupInfo,
     dcm_validator,
 )
-from medml import utils
-from medml.json_base.forms.UZIGroupForm import (
-    UZIFormUpdate,
-    UZIForm,
-    UZINullForm,
-    UZISegmentationDataForm,
-    UZISegmentationGroupForm,
+from medweb.medml import utils
+from medweb.medml.json_base.forms.CTGroupForm import (
+    CTFormUpdate,
+    CTForm,
+    CTNullForm,
+    CTSegmentationDataForm,
+    CTSegmentationGroupForm,
 )
 
 from django.db.models import F, Value, JSONField
@@ -61,9 +60,9 @@ class PatientSerializer(ser.ModelSerializer):
         return obj
 
 
-class UZIDeviceSerializer(ser.ModelSerializer):
+class CTDeviceSerializer(ser.ModelSerializer):
     class Meta:
-        model = UZIDevice
+        model = CTDevice
         fields = "__all__"
 
 
@@ -224,7 +223,7 @@ class ShotsSerializer(ser.ModelSerializer):
 
 class AiInfoSerializer(ser.ModelSerializer):
     class Meta:
-        model = UZISegmentGroupInfo
+        model = CTSegmentGroupInfo
         fields = ["details", "is_ai", "id"]
 
     def to_representation(self, instance):
@@ -233,16 +232,16 @@ class AiInfoSerializer(ser.ModelSerializer):
         return ret
 
 
-class UZIImageModelSerializer(ser.ModelSerializer):
+class CTImageModelSerializer(ser.ModelSerializer):
     patient_card = ShotsSerializer()
 
     class Meta:
-        model = UZIImage
+        model = CTImage
         fields = "__all__"
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        ret["uzi_device"] = getattr(instance.uzi_device, "name", None)
+        ret["ct_device"] = getattr(instance.ct_device, "name", None)
         ai_info = AiInfoSerializer(instance=instance.image.segments, many=True)
         ret["details"]["ai_info"] = ai_info.data
         return ret
@@ -292,7 +291,7 @@ class PatientAndCardSerializer(ser.Serializer):
 
 class PatientTableSerializer(ser.Serializer):
     patient = PatientSerializer()
-    shots = UZIImageModelSerializer(many=True)
+    shots = CTImageModelSerializer(many=True)
 
     def __new__(cls, *args, **kwargs):
         kwargs["many"] = False
@@ -306,23 +305,23 @@ class PatientTableSerializer(ser.Serializer):
         return ret
 
 
-"""UZIS' serizlisers"""
+"""CTs' serizlisers"""
 
 
-class UZIImageCreateSerializer(ser.ModelSerializer):
+class CTImageCreateSerializer(ser.ModelSerializer):
     original_image = ser.FileField(
         required=True, write_only=True, validators=[dcm_validator]
     )
-    projection_type = ser.ChoiceField(
-        choices=UZIImage.PROJECTION_TYPE_CHOICES,
-        default=UZIImage.PROJECTION_TYPE_CHOICES[0][0],
+    ct_type = ser.ChoiceField(
+        choices=CTImage.CT_TYPE_CHOICES,
+        default=CTImage.CT_TYPE_CHOICES[0][0],
     )
 
     class Meta:
-        model = UZIImage
+        model = CTImage
         fields = (
-            "uzi_device",
-            "projection_type",
+            "ct_device",
+            "ct_type",
             "patient_card",
             "original_image",
         )
@@ -330,33 +329,33 @@ class UZIImageCreateSerializer(ser.ModelSerializer):
     def create(self, validated_data):
         image = validated_data.pop("original_image")
         # nimage, count = utils.in_mem_image_pre_saver(image)
-        ssr = UZIForm(
-            data={"projection_type": validated_data.pop("projection_type")}
+        ssr = CTForm(
+            data={"ct_type": validated_data.pop("ct_type")}
         )  # TODO: CHANGE FORM
         ssr.is_valid(raise_exception=True)
         validated_data["details"] = ssr.validated_data
         # validated_data["image_count"] = count
         originaImage = OriginalImage.objects.create(image=image)
         validated_data["image"] = originaImage
-        uzi_image = super().create(validated_data)
-        return {"uzi_image": uzi_image, "image": originaImage}
+        ct_image = super().create(validated_data)
+        return {"ct_image": ct_image, "image": originaImage}
 
 
-class UZIImageCreate2Serializer(ser.ModelSerializer):
+class CTImageCreate2Serializer(ser.ModelSerializer):
     original_image = ser.FileField(
         required=True, write_only=True, validators=[dcm_validator]
     )
-    projection_type = ser.ChoiceField(
-        choices=UZIImage.PROJECTION_TYPE_CHOICES,
-        default=UZIImage.PROJECTION_TYPE_CHOICES[0][0],
+    ct_type = ser.ChoiceField(
+        choices=CTImage.CT_TYPE_CHOICES,
+        default=CTImage.CT_TYPE_CHOICES[0][0],
     )
-    # details = UZINullForm(required=False) # TODO: change if u want to add some details to UZIImage
+    # details = CTNullForm(required=False) # TODO: change if u want to add some details to CTImage
 
     class Meta:
-        model = UZIImage
+        model = CTImage
         fields = (
-            "uzi_device",
-            "projection_type",
+            "ct_device",
+            "ct_type",
             "patient_card",
             "original_image",
         )
@@ -365,8 +364,8 @@ class UZIImageCreate2Serializer(ser.ModelSerializer):
         # TODO: CHANGE to return ID of image_group
         image = validated_data.pop("original_image")
         nimage, count = utils.in_mem_image_pre_saver(image)
-        ssr = UZINullForm(
-            data={"projection_type": validated_data.pop("projection_type")}
+        ssr = CTNullForm(
+            data={"ct_type": validated_data.pop("ct_type")}
         )  # TODO: CHANGE FORM
         ssr.is_valid(raise_exception=True)
         validated_data["details"] = ssr.validated_data
@@ -377,7 +376,7 @@ class UZIImageCreate2Serializer(ser.ModelSerializer):
         return {"image_group": image_group, "image": originaImage}
 
 
-class UZIOriginalImageSerializer(RelativeURLMixin, ser.ModelSerializer):
+class CTOriginalImageSerializer(RelativeURLMixin, ser.ModelSerializer):
 
     def to_representation(self, instance):
         return super().to_representation(instance)
@@ -387,32 +386,32 @@ class UZIOriginalImageSerializer(RelativeURLMixin, ser.ModelSerializer):
         fields = "__all__"
 
 
-class UZIImageAllSerializer(ser.ModelSerializer):
+class CTImageAllSerializer(ser.ModelSerializer):
     class Meta:
-        model = UZIImage
-        exclude = ["uzi_device", "patient_card"]
+        model = CTImage
+        exclude = ["ct_device", "patient_card"]
 
 
-class UZIImageSupprotSerializer(ser.Serializer):
+class CTImageSupprotSerializer(ser.Serializer):
     patient = PatientSerializer()
-    uzi_device = UZIDeviceSerializer()
+    ct_device = CTDeviceSerializer()
     patient_card = PatientCardSerializer()
-    image_group = UZIImageAllSerializer()
+    image_group = CTImageAllSerializer()
 
-    UZI_DEV_PREFIX = "uzi_device_"
+    CT_DEV_PREFIX = "ct_device_"
 
-    def to_representation(self, obj: UZIImage):
+    def to_representation(self, obj: CTImage):
         sz = super().to_representation({
             "patient": obj.patient_card.patient,
-            "uzi_device": obj.uzi_device,
+            "ct_device": obj.ct_device,
             "patient_card": obj.patient_card,
             "image_group": obj,
         })
         patient_card = sz.pop("patient_card")
-        uzi_device = sz.pop("uzi_device")
+        ct_device = sz.pop("ct_device")
         image_group = sz.pop("image_group")
         sz.update(
-            {f"{self.UZI_DEV_PREFIX}{f}": uzi_device[f] for f in uzi_device}
+            {f"{self.CT_DEV_PREFIX}{f}": ct_device[f] for f in ct_device}
         )
         sz.update(patient_card)
         sz["patient_card_id"] = sz.pop("id")
@@ -420,15 +419,15 @@ class UZIImageSupprotSerializer(ser.Serializer):
         return sz
 
 
-class UZISegmentationPointSerializer(ser.ModelSerializer):
+class CTSegmentationPointSerializer(ser.ModelSerializer):
     class Meta:
         model = SegmentationPoint
         exclude = ["segment"]
 
 
-class UZISegmentationDataPointsSerializer(ser.ModelSerializer):
-    points = UZISegmentationPointSerializer(many=True)
-    details = UZISegmentationDataForm()
+class CTSegmentationDataPointsSerializer(ser.ModelSerializer):
+    points = CTSegmentationPointSerializer(many=True)
+    details = CTSegmentationDataForm()
 
     def to_representation(self, instance):
         points = instance.points.all()
@@ -443,9 +442,9 @@ class UZISegmentationDataPointsSerializer(ser.ModelSerializer):
         exclude = ["segment_group"]
 
 
-class UZISegmentationDataSerializer(ser.ModelSerializer):
-    data = UZISegmentationDataPointsSerializer(many=True)
-    details = UZISegmentationGroupForm()
+class CTSegmentationDataSerializer(ser.ModelSerializer):
+    data = CTSegmentationDataPointsSerializer(many=True)
+    details = CTSegmentationGroupForm()
 
     def to_representation(self, instance):
         seg_data = instance.data.all()
@@ -455,14 +454,14 @@ class UZISegmentationDataSerializer(ser.ModelSerializer):
         return ret
 
     class Meta:
-        model = UZISegmentGroupInfo
+        model = CTSegmentGroupInfo
         exclude = ["original_image"]
 
 
-class UZIImageGetSerializer(ser.Serializer):
-    image = UZIOriginalImageSerializer()
-    segmentation = UZISegmentationDataSerializer(many=True)
-    info = UZIImageSupprotSerializer()
+class CTImageGetSerializer(ser.Serializer):
+    image = CTOriginalImageSerializer()
+    segmentation = CTSegmentationDataSerializer(many=True)
+    info = CTImageSupprotSerializer()
 
     def to_representation(self, instance):
         image = getattr(instance, "image", None)
@@ -485,15 +484,15 @@ class PatientCardUpdateSerializer(ser.ModelSerializer):
         }
 
 
-class UZIShowUpdateSerializer(ser.ModelSerializer):
+class CTShowUpdateSerializer(ser.ModelSerializer):
     patient_card = PatientCardUpdateSerializer()
-    details = UZIFormUpdate(required=False)
+    details = CTFormUpdate(required=False)
 
     class Meta:
-        model = UZIImage
+        model = CTImage
         exclude = ["image_count"]
         extra_kwargs = {
-            "uzi_device": {"required": False, "allow_null": False},
+            "ct_device": {"required": False, "allow_null": False},
             "brightness": {"required": False, "allow_null": False},
             "contrast": {"required": False, "allow_null": False},
             "sharpness": {"required": False, "allow_null": False},
@@ -517,25 +516,25 @@ class UZIShowUpdateSerializer(ser.ModelSerializer):
         return ret
 
 
-class UZIImageInfoSerialier(ser.Serializer):
-    info = UZIImageSupprotSerializer()
+class CTImageInfoSerialier(ser.Serializer):
+    info = CTImageSupprotSerializer()
 
 
-class UZIImageUpdateSerializer(ser.ModelSerializer):
+class CTImageUpdateSerializer(ser.ModelSerializer):
     class Meta:
-        model = UZIImage
+        model = CTImage
         fields = ["pk"]
 
 
-class UZIUpdateOriginalImageSerializer(ser.ModelSerializer):
+class CTUpdateOriginalImageSerializer(ser.ModelSerializer):
     class Meta:
-        model = UZIImage
+        model = CTImage
         exclude = ["image", "image_count"]
 
 
-class UZISegmentationGroupBaseSerializer(ser.ModelSerializer):
+class CTSegmentationGroupBaseSerializer(ser.ModelSerializer):
     class Meta:
-        model = UZISegmentGroupInfo
+        model = CTSegmentGroupInfo
         exclude = ["original_image"]
         extra_kwargs = {"is_ai": {"read_only": True}}
 
@@ -550,15 +549,15 @@ class UZISegmentationGroupBaseSerializer(ser.ModelSerializer):
         return segment_group
 
 
-class UZISegmentationPointCreateSerializer(ser.ModelSerializer):
+class CTSegmentationPointCreateSerializer(ser.ModelSerializer):
     class Meta:
         model = SegmentationPoint
         exclude = ["segment"]
         extra_kwargs = {"uid": {"read_only": True}}
 
 
-class UZISegmentationDataCreateSerializer(ser.ModelSerializer):
-    points = UZISegmentationPointCreateSerializer(many=True)
+class CTSegmentationDataCreateSerializer(ser.ModelSerializer):
+    points = CTSegmentationPointCreateSerializer(many=True)
 
     class Meta:
         model = SegmentationData
@@ -569,12 +568,12 @@ class UZISegmentationDataCreateSerializer(ser.ModelSerializer):
         return super().to_internal_value(data)
 
 
-class UZISegmentationGroupCreateSerializer(ser.ModelSerializer):
-    details = UZISegmentationGroupForm()
-    data = UZISegmentationDataCreateSerializer()
+class CTSegmentationGroupCreateSerializer(ser.ModelSerializer):
+    details = CTSegmentationGroupForm()
+    data = CTSegmentationDataCreateSerializer()
 
     class Meta:
-        model = UZISegmentGroupInfo
+        model = CTSegmentGroupInfo
         exclude = ["original_image", "is_ai"]
 
     def create(self, validated_data):
@@ -582,7 +581,7 @@ class UZISegmentationGroupCreateSerializer(ser.ModelSerializer):
         validated_data["details"]["is_ai"] = False
         data = validated_data.pop("data") or []
         validated_data["original_image_id"] = self.context["view"].kwargs[
-            "uzi_img_id"
+            "ct_img_id"
         ]
         segment_group = super().create(validated_data)
         # creating new segment
@@ -602,26 +601,26 @@ class UZISegmentationGroupCreateSerializer(ser.ModelSerializer):
         return ret
 
 
-class UZISegmentationGroupCreateSoloSerializer(ser.ModelSerializer):
-    details = UZISegmentationGroupForm()
+class CTSegmentationGroupCreateSoloSerializer(ser.ModelSerializer):
+    details = CTSegmentationGroupForm()
 
     class Meta:
-        model = UZISegmentGroupInfo
+        model = CTSegmentGroupInfo
         exclude = ["original_image", "is_ai"]
 
     def create(self, validated_data):
         validated_data["is_ai"] = False
         validated_data["original_image_id"] = self.context["view"].kwargs[
-            "uzi_img_id"
+            "ct_img_id"
         ]
         return super().create(validated_data)
 
 
-class UZISegmentationGroupUpdateDeleteSerializer(ser.ModelSerializer):
-    details = UZISegmentationGroupForm()
+class CTSegmentationGroupUpdateDeleteSerializer(ser.ModelSerializer):
+    details = CTSegmentationGroupForm()
 
     class Meta:
-        model = UZISegmentGroupInfo
+        model = CTSegmentGroupInfo
         exclude = ["original_image", "is_ai"]
 
     def update(self, instance, validated_data):
@@ -630,8 +629,8 @@ class UZISegmentationGroupUpdateDeleteSerializer(ser.ModelSerializer):
         return instance
 
 
-class UZISegmentationAddSerializer(ser.ModelSerializer):
-    points = UZISegmentationPointCreateSerializer(many=True)
+class CTSegmentationAddSerializer(ser.ModelSerializer):
+    points = CTSegmentationPointCreateSerializer(many=True)
 
     class Meta:
         model = SegmentationData
@@ -656,8 +655,8 @@ class UZISegmentationAddSerializer(ser.ModelSerializer):
         return seg_object
 
 
-class UZISegmentationUpdateDeleteSerializer(ser.ModelSerializer):
-    points = UZISegmentationPointCreateSerializer(many=True)
+class CTSegmentationUpdateDeleteSerializer(ser.ModelSerializer):
+    points = CTSegmentationPointCreateSerializer(many=True)
 
     class Meta:
         model = SegmentationData
@@ -683,20 +682,12 @@ class UZISegmentationUpdateDeleteSerializer(ser.ModelSerializer):
         return super().update(instance, validated_data)
 
 
-"""ML"""
-
-
-class MLModelSerializer(ser.ModelSerializer):
-    class Meta:
-        model = MLModel
-        fields = "__all__"
-
 
 """Patient"""
 
 
-class UZIImagePatientCreateSerializer(ser.Serializer):
-    shot_data = UZIImageCreateSerializer()
+class CTImagePatientCreateSerializer(ser.Serializer):
+    shot_data = CTImageCreateSerializer()
     email = ser.EmailField()
 
     def create(self, validated_data):
